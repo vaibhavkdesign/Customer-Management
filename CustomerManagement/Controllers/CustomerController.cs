@@ -1,4 +1,5 @@
 ﻿using CustomerManagement.Models;
+using CustomerManagement.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -8,27 +9,25 @@ using System.Threading.Tasks;
 
 namespace CustomerManagement.Controllers
 {
-    [Authorize]
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]   
     public class CustomerController : ControllerBase
     {
-        private readonly CustomerContext _dbContext;        
+        private readonly ICustomerService _customerService;
 
-        public CustomerController(CustomerContext dbContext) 
+        public CustomerController(ICustomerService customerService)
         {
-            _dbContext = dbContext;            
+            _customerService = customerService;
         }
 
-       
-        
         [HttpGet]        
         public async Task<ActionResult<IEnumerable<Customer>>> GetCustomers()
         {
-           
-            var customers = await _dbContext.Customers.ToListAsync();
 
-            if (customers == null || customers.Count == 0)
+            var customers = await _customerService.GetCustomersAsync();
+
+            if (customers == null)
             {
                 return NotFound("No customers found.");
             }
@@ -40,7 +39,7 @@ namespace CustomerManagement.Controllers
         [HttpGet("{id}")]       
         public async Task<ActionResult<Customer>> GetCustomerById(int id)
         {
-            var customer = await _dbContext.Customers.FindAsync(id);
+            var customer = await _customerService.GetCustomerByIdAsync(id);
 
             if (customer == null)
             {
@@ -59,10 +58,9 @@ namespace CustomerManagement.Controllers
                 return BadRequest("Invalid customer data.");
             }
 
-            _dbContext.Customers.Add(customer);
-            await _dbContext.SaveChangesAsync();
+            var createdCustomer = await _customerService.CreateCustomerAsync(customer);
 
-            return CreatedAtAction(nameof(GetCustomers), new { id = customer.Id }, customer);
+            return CreatedAtAction(nameof(GetCustomers), new { id = createdCustomer.Id }, createdCustomer);
         }
 
 
@@ -71,49 +69,26 @@ namespace CustomerManagement.Controllers
         [HttpPut("{id}")]        
         public async Task<IActionResult> UpdateCustomer(int id, Customer customer)
         {
-            if (id != customer.Id)
+            var updated = await _customerService.UpdateCustomerAsync(id, customer);
+
+            if (!updated)
             {
-                return BadRequest("Customer ID mismatch.");
+                return BadRequest("Invalid update operation.");
             }
 
-            _dbContext.Entry(customer).State=EntityState.Modified;
-            try
-            {
-                await _dbContext.SaveChangesAsync();
-            }
-            catch(DbUpdateConcurrencyException)
-            {
-                if (!CustomerAvailable(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-
-            }
             return Ok();
-        }
-        private bool CustomerAvailable(int id)
-        {
-            return _dbContext.Customers.Any(e => e.Id == id);
-        }
+        }    
 
-
-        
+                
         [HttpDelete("{id}")]        
         public async Task<IActionResult> DeleteCustomer(int id)
         {
-            var existingCustomer = await _dbContext.Customers.FindAsync(id);
+            var deleted = await _customerService.DeleteCustomerAsync(id);
 
-            if (existingCustomer == null)
+            if (!deleted)
             {
                 return NotFound($"Customer with ID {id} not found.");
             }
-
-            _dbContext.Customers.Remove(existingCustomer);
-            await _dbContext.SaveChangesAsync();
 
             return Ok();
         }
