@@ -1,4 +1,5 @@
-﻿using CustomerManagement.Models;
+﻿using cma_xds_soap.Models;
+using CustomerManagement.Models;
 using CustomerManagement.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -41,9 +42,10 @@ namespace CustomerManagement.Controllers
             {
                 return BadRequest("Invalid credentials.");
             }                         
-            var token = await _authenticationService.AuthenticateUser(userCredentials);                
-            return Ok(new { Token = token });
-                    
+            var token = await _authenticationService.AuthenticateUser(userCredentials);
+            var userToken = new UserToken { Token = token };
+            return Ok(userToken);
+
         }
     }       
 }
